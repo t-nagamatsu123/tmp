@@ -1,1 +1,60 @@
-tmp
+function searchAndRecordEmails() {
+  const searchQuery = 'to:hoge@hoge.co.jp after:' + getCurrentDate();
+  const sheetId = '12345678910';
+  const spreadsheet = SpreadsheetApp.openById(sheetId);
+  const sheetName = getCurrentDate();
+  let sheet = spreadsheet.getSheetByName(sheetName);
+  
+  if (!sheet) {
+    sheet = spreadsheet.insertSheet(sheetName);
+    sheet.appendRow(['送信者', 'メールタイトル', '受信日時']);
+  }
+
+  const threads = GmailApp.search(searchQuery);
+  const messages = GmailApp.getMessagesForThreads(threads);
+
+  messages.forEach(threadMessages => {
+    threadMessages.forEach(message => {
+      sheet.appendRow([message.getFrom(), message.getSubject(), message.getDate()]);
+    });
+  });
+
+  sendWebhookNotification('メール検索と抽出処理が完了しました。');
+}
+
+function getCurrentDate() {
+  const date = new Date();
+  const year = date.getFullYear();
+  const month = ('0' + (date.getMonth() + 1)).slice(-2);
+  const day = ('0' + date.getDate()).slice(-2);
+  return `${year}-${month}-${day}`;
+}
+
+function sendWebhookNotification(message) {
+  const webhookUrl = 'https://your-webhook-url.com';
+  const payload = JSON.stringify({text: message});
+  
+  const options = {
+    method: 'post',
+    contentType: 'application/json',
+    payload: payload
+  };
+  
+  UrlFetchApp.fetch(webhookUrl, options);
+}
+
+function createTriggers() {
+  ScriptApp.newTrigger('searchAndRecordEmails')
+    .timeBased()
+    .everyDays(1)
+    .atHour(8)
+    .nearMinute(0)
+    .create();
+  
+  ScriptApp.newTrigger('searchAndRecordEmails')
+    .timeBased()
+    .everyDays(1)
+    .atHour(15)
+    .nearMinute(0)
+    .create();
+}
